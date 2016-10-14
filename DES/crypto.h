@@ -19,18 +19,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * stdafx.h : include file for standard system include files,
- * or project specific include files that are used frequently, but
- * are changed infrequently
+ * crypto.h - Public Header for DES Crypto
  */
 
 #pragma once
+#include <cstdint>
 
-#include "targetver.h"
+namespace DES
+{
+	/**
+	 * The mode to operate in
+	 */
+	enum Mode { ENCRYPT, DECRYPT };
 
-#include <stdio.h>
-#include <tchar.h>
-
-
-
-// TODO: reference additional headers your program requires here
+	/**
+	 * Encrypt or decrypt the specified 64-bit block with the specified 64-bit key
+	 */
+	uint64_t TransformBlock(uint64_t block, uint64_t key, Mode mode);
+}

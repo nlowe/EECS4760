@@ -19,18 +19,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * stdafx.h : include file for standard system include files,
- * or project specific include files that are used frequently, but
- * are changed infrequently
+ * Mask.h - Common bitmasks
  */
 
 #pragma once
+#include <cstdint>
 
-#include "targetver.h"
+/** A 28-bit mask */
+const uint32_t MASK28 = 0xFFFFFFF;
+/** A 32-bit mask */
+const uint64_t MASK32 = 0xFFFFFFFF;
+/** A 56-bit mask */
+const uint64_t MASK56 = 0xFFFFFFFFFFFFFF;
 
-#include <stdio.h>
-#include <tchar.h>
+/** A 6-bit mask */
+const uint8_t MASK6 = 0x3F;
 
+/** A mask for the least significant bit */
+const uint8_t MASK_LSB = 0x1;
 
-
-// TODO: reference additional headers your program requires here
+/** A mask for the 6th bit */
+const uint8_t MASK6_MSB = 0x20;
+/** A mask for the middle 4 bits in a 6 bit number */
+const uint8_t MASK6_MIDDLE4 = 0x1E;
