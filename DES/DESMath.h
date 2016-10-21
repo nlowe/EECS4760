@@ -25,6 +25,48 @@
 #pragma once
 #include <cstdint>
 #include "Mask.h"
+#include <random>
+#include "Util.h"
+
+
+/**
+ * Converts 8 bytes to a uint64_t
+ */
+inline uint64_t makeBlock(char b1, char b2, char b3, char b4, char b5, char b6, char b7, char b8)
+{
+	return charToUnsigned64(b1) << 56 |
+		   charToUnsigned64(b2) << 48 |
+		   charToUnsigned64(b3) << 40 |
+	       charToUnsigned64(b4) << 32 |
+		   charToUnsigned64(b5) << 24 |
+		   charToUnsigned64(b6) << 16 |
+		   charToUnsigned64(b7) << 8  |
+		   charToUnsigned64(b8);
+}
+
+/**
+ * Generates a random 32-bit unsigned integer (Half a block)
+ */
+inline uint32_t RandomHalfBlock()
+{
+	std::random_device rd;
+	std::mt19937_64 gen(rd());
+
+	std::uniform_int_distribution<uint32_t> half;
+	return half(gen);
+}
+
+/**
+ * Generates a random 64-bit unsigned integer (Full Block)
+ */
+inline uint64_t RandomBlock()
+{
+	std::random_device rd;
+	std::mt19937_64 gen(rd());
+
+	std::uniform_int_distribution<uint64_t> full;
+	return full(gen);
+}
 
 /**
  * Splits the specified 56 bit number into a two 28 bit halves.
@@ -59,7 +101,7 @@ inline void split64(uint64_t in, uint32_t& left, uint32_t& right)
 */
 inline uint64_t join64(uint32_t left, uint32_t right)
 {
-	return left << 32 | right;
+	return left << 31 | right;
 }
 
 /**

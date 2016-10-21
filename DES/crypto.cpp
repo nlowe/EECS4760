@@ -26,6 +26,9 @@
 #include "crypto.h"
 #include "Boxes.h"
 #include "DESMath.h"
+#include "ExitCodes.h"
+#include <iostream>
+#include <fstream>
 
 inline uint64_t permute(uint64_t in, const uint8_t* table, size_t inputSize, size_t outputSize)
 {
@@ -60,48 +63,33 @@ inline uint32_t substitute(uint64_t in)
 		   S[7][srow(b8)][scol(b8)];
 }
 
-inline void rotateKey(uint64_t& key)
-{
-	uint32_t left, right;
-	split56(key, left, right);
-}
-
-inline uint64_t computeRoundKey(uint32_t& left, uint32_t& right, uint8_t round)
-{
-	rotL28(left, RotationSchedule[round]);
-	rotL28(right, RotationSchedule[round]);
-
-	return permute(join56(left, right), KeyPC56To48, 56, 48);
-}
-
-void init(uint64_t key, uint32_t& left, uint32_t& right)
-{
-	split56(permute(key, KeyPC64To56, 64, 56), left, right);
-}
-
-uint64_t DES::TransformBlock(uint64_t block, uint64_t key, DES::Mode mode)
+void computeRoundKeys(uint64_t key, uint64_t (&keys)[16])
 {
 	// Initialize the key
 	//   1. Compress and Permute the key into 56 bits
 	//   2. Split the key into two 28 bit halves
 	uint32_t keyLeft, keyRight;
-	init(key, keyLeft, keyRight);
+	split56(permute(key, KeyPC64To56, 64, 56), keyLeft, keyRight);
 
+	for(auto i = 0; i < 16; i++)
+	{
+		rotL28(keyLeft, RotationSchedule[i]);
+		rotL28(keyRight, RotationSchedule[i]);
+
+		keys[i] = permute(join56(keyLeft, keyRight), KeyPC56To48, 56, 48);
+	}
+}
+
+uint64_t TransformBlock(uint64_t block, uint64_t (&keys)[16], DES::Action action)
+{
 	// Perform the initial permutation on the plaintext
-	uint64_t permutedBlock = permute(block, InitalBlockPermutation, 64, 64);
-	
+	auto permutedBlock = permute(block, InitalBlockPermutation, 64, 64);
+
 	// Split the plaintext into 32 bit left and right halves
 	uint32_t left, right;
 
 	// Perform the initial permutation
 	split64(permutedBlock, left, right);
-
-	// Precompute round keys
-	uint64_t keys[16];
-	for(auto i = 0; i < 16; i++)
-	{
-		keys[i] = computeRoundKey(keyLeft, keyRight, i);
-	}
 
 	// 16 fistel rounds
 	for(auto i = 0; i < 16; i++)
@@ -110,7 +98,7 @@ uint64_t DES::TransformBlock(uint64_t block, uint64_t key, DES::Mode mode)
 		auto expandedRightHalf = permute(right, BlockPE32To48, 32, 48);
 
 		// XOR with the round key
-		expandedRightHalf ^= keys[mode == ENCRYPT ? i : 16-i];
+		expandedRightHalf ^= keys[action == DES::Action::ENCRYPT ? i : 16-i];
 
 		// Substitute via S-Boxes
 		auto substituted = substitute(expandedRightHalf);
@@ -128,3 +116,113 @@ uint64_t DES::TransformBlock(uint64_t block, uint64_t key, DES::Mode mode)
 
 	return permute(join64(left, right), FinalBlockPermutation, 64, 64);
 }
+
+
+int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector)
+{
+	std::ifstream reader;
+	reader.open(inputFile, std::ios::binary | std::ios::ate | std::ios::in);
+
+	if(!reader.good())
+	{
+		std::cerr << "Unable to open file for read: " << inputFile << std::endl;
+		return EXIT_ERR_BAD_INPUT;
+	}
+
+	uint32_t len = reader.tellg();
+	if (len > MASK31)
+	{
+		std::cerr << "Input file too large according to spec. Must be less than 2GiB" << std::endl;
+		return EXIT_ERR_TOO_BIG;
+	}
+
+	reader.seekg(0, std::ios::beg);
+
+	std::ofstream writer;
+	writer.open(outputFile, std::ios::binary | std::ios::out);
+
+	if(!writer.good())
+	{
+		std::cerr << "Unable to open file for write: " << outputFile << std::endl;
+		reader.close();
+		return EXIT_ERR_BAD_OUTPUT;
+	}
+
+	uint64_t keys[16];
+	computeRoundKeys(key, keys);
+
+	// Write the length of the file so we can determine how much padding we used when decrypting
+	auto headerBlock = join64(RandomHalfBlock(), len);
+
+	// Used in CBC mode only
+	uint64_t previousBlock;
+	if(CBCInitialVector.HasValue())
+	{
+		previousBlock = CBCInitialVector.GetValue();
+		headerBlock ^= previousBlock;
+	}
+
+	auto encryptedHeader = TransformBlock(headerBlock, keys, DES::Action::ENCRYPT);
+	previousBlock = encryptedHeader;
+
+	// Write encrypted header
+	writer.write(reinterpret_cast<const char*>(&encryptedHeader), DES_BLOCK_SIZE_BYTES);
+
+	// Read file into memory
+	auto bytes = new char[len]{ 0 };
+	reader.read(bytes, len);
+	reader.close();
+
+	size_t written = 0;
+	while(written < len)
+	{
+		uint64_t block;
+		if(len - written >= DES_BLOCK_SIZE_BYTES)
+		{
+			block = makeBlock(
+				bytes[written++],
+				bytes[written++],
+				bytes[written++],
+				bytes[written++],
+				bytes[written++],
+				bytes[written++],
+				bytes[written++],
+				bytes[written++]
+			);
+		}
+		else
+		{
+			// Need padding
+			block = RandomBlock();
+			for(auto i = 0; i < len - written; i++)
+			{
+				block |= charToUnsigned64(bytes[written++]) << (56 - (8 * i));
+			}
+		}
+
+		if(CBCInitialVector.HasValue())
+		{
+			block ^= previousBlock;
+		}
+		auto encryptedBlock = TransformBlock(block, keys, DES::Action::ENCRYPT);
+		if(CBCInitialVector.HasValue())
+		{
+			previousBlock = encryptedBlock;
+		}
+
+		// Write block
+		writer.write(reinterpret_cast<const char*>(&block), DES_BLOCK_SIZE_BYTES);
+	}
+
+	writer.flush();
+	writer.close();
+
+	delete[] bytes;
+	return EXIT_SUCCESS;
+}
+
+int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector)
+{
+	return 0;
+}
+

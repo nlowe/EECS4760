@@ -24,16 +24,23 @@
 
 #pragma once
 #include <cstdint>
+#include <string>
+#include "Util.h"
+
+#define DES_BLOCK_SIZE_BYTES 8
 
 namespace DES
 {
 	/**
-	 * The mode to operate in
+	 * The action to perform on the block
 	 */
-	enum Mode { ENCRYPT, DECRYPT };
+	enum Action { ENCRYPT, DECRYPT, UNKNOWN_ACTION };
 
 	/**
-	 * Encrypt or decrypt the specified 64-bit block with the specified 64-bit key
+	 * The Mode to operate in
 	 */
-	uint64_t TransformBlock(uint64_t block, uint64_t key, Mode mode);
+	enum Mode { ECB, CBC, UNKNOWN_MODE };
+
+	int EncryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector);
+	int DecryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector);
 }

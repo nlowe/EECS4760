@@ -27,6 +27,7 @@
 
 /** A 28-bit mask */
 const uint32_t MASK28 = 0xFFFFFFF;
+const uint32_t MASK31 = 0x7FFFFFFF;
 /** A 32-bit mask */
 const uint64_t MASK32 = 0xFFFFFFFF;
 /** A 56-bit mask */
