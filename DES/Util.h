@@ -29,6 +29,11 @@ inline uint64_t charToUnsigned64(char c)
 	return 0ull | reinterpret_cast<unsigned char&>(c);
 }
 
+inline uint64_t extract64FromBuff(char* buff, size_t offset)
+{
+	return *(reinterpret_cast<unsigned long long*>(buff + offset));
+}
+
 template<typename T> class Optional
 {
 public:

@@ -42,7 +42,7 @@ inline uint64_t permute(uint64_t in, const uint8_t* table, size_t inputSize, siz
 	return out;
 }
 
-inline uint32_t substitute(uint64_t in)
+inline uint64_t substitute(uint64_t in)
 {
 	auto b1 = extract6(in, 1);
 	auto b2 = extract6(in, 2);
@@ -68,7 +68,7 @@ void computeRoundKeys(uint64_t key, uint64_t (&keys)[16])
 	// Initialize the key
 	//   1. Compress and Permute the key into 56 bits
 	//   2. Split the key into two 28 bit halves
-	uint32_t keyLeft, keyRight;
+	uint64_t keyLeft, keyRight;
 	split56(permute(key, KeyPC64To56, 64, 56), keyLeft, keyRight);
 
 	for(auto i = 0; i < 16; i++)
@@ -86,7 +86,7 @@ uint64_t TransformBlock(uint64_t block, uint64_t (&keys)[16], DES::Action action
 	auto permutedBlock = permute(block, InitalBlockPermutation, 64, 64);
 
 	// Split the plaintext into 32 bit left and right halves
-	uint32_t left, right;
+	uint64_t left, right;
 
 	// Perform the initial permutation
 	split64(permutedBlock, left, right);
@@ -95,7 +95,7 @@ uint64_t TransformBlock(uint64_t block, uint64_t (&keys)[16], DES::Action action
 	for(auto i = 0; i < 16; i++)
 	{
 		// Expand and permute the right half of the block to 48 bits
-		auto expandedRightHalf = permute(right, BlockPE32To48, 32, 48);
+		auto expandedRightHalf = permute(right, BlockPE32To48, 32, 48) & MASK48;
 
 		// XOR with the round key
 		expandedRightHalf ^= keys[action == DES::Action::ENCRYPT ? i : 16-i];
@@ -129,7 +129,7 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		return EXIT_ERR_BAD_INPUT;
 	}
 
-	uint32_t len = reader.tellg();
+	size_t len = reader.tellg();
 	if (len > MASK31)
 	{
 		std::cerr << "Input file too large according to spec. Must be less than 2GiB" << std::endl;
@@ -179,16 +179,8 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		uint64_t block;
 		if(len - written >= DES_BLOCK_SIZE_BYTES)
 		{
-			block = makeBlock(
-				bytes[written++],
-				bytes[written++],
-				bytes[written++],
-				bytes[written++],
-				bytes[written++],
-				bytes[written++],
-				bytes[written++],
-				bytes[written++]
-			);
+			block = extract64FromBuff(bytes, written);
+			written += DES_BLOCK_SIZE_BYTES;
 		}
 		else
 		{
@@ -211,7 +203,7 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		}
 
 		// Write block
-		writer.write(reinterpret_cast<const char*>(&block), DES_BLOCK_SIZE_BYTES);
+		writer.write(reinterpret_cast<const char*>(&encryptedBlock), DES_BLOCK_SIZE_BYTES);
 	}
 
 	writer.flush();
@@ -223,6 +215,99 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 
 int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector)
 {
-	return 0;
+	std::ifstream reader;
+	reader.open(inputFile, std::ios::binary | std::ios::ate | std::ios::in);
+
+	if(!reader.good())
+	{
+		std::cerr << "Unable to open file for read: " << inputFile << std::endl;
+		return EXIT_ERR_BAD_INPUT;
+	}
+
+	size_t len = reader.tellg();
+	len -= DES_BLOCK_SIZE_BYTES;
+	if (len > MASK31)
+	{
+		std::cerr << "Input file too large according to spec. Must be less than 2GiB" << std::endl;
+		return EXIT_ERR_TOO_BIG;
+	}
+
+	if(len % 8 != 0)
+	{
+		std::cerr << "Input file not 64-bit aligned" << std::endl;
+		return EXIT_ERR_BAD_INPUT;
+	}
+
+	reader.seekg(0, std::ios::beg);
+
+	std::ofstream writer;
+	writer.open(outputFile, std::ios::binary | std::ios::out);
+
+	if(!writer.good())
+	{
+		std::cerr << "Unable to open file for write: " << outputFile << std::endl;
+		reader.close();
+		return EXIT_ERR_BAD_OUTPUT;
+	}
+
+	auto bytes = new char[len];
+
+	uint64_t keys[16];
+	computeRoundKeys(key, keys);
+
+	char rawheader[8] = { 0 };
+	reader.read(rawheader, DES_BLOCK_SIZE_BYTES);
+	reader.read(bytes, len);
+
+	// Read the length of the file so we can determine how much padding we used when encrypting
+	auto headerBlock = extract64FromBuff(rawheader, 0);
+
+	auto decryptedHeader = TransformBlock(headerBlock, keys, DES::Action::DECRYPT);
+
+	// Used in CBC mode only
+	uint64_t previousBlock;
+	if(CBCInitialVector.HasValue())
+	{
+		previousBlock = CBCInitialVector.GetValue();
+		headerBlock ^= previousBlock;
+	}
+	previousBlock = decryptedHeader;
+
+	// Read the actual length of the file
+	auto padding = len - (decryptedHeader & MASK32);
+
+	size_t written = 0;
+	while(written != len)
+	{
+		auto block = extract64FromBuff(bytes, written);
+		written += DES_BLOCK_SIZE_BYTES;
+
+		auto decryptedBlock = TransformBlock(block, keys, DES::Action::DECRYPT);
+		if(CBCInitialVector.HasValue())
+		{
+			decryptedBlock ^= previousBlock;
+			previousBlock = decryptedBlock;
+		}
+
+		if (written == len && padding > 0)
+		{
+			// Padding Block
+			uint64_t mask = 0;
+			for (auto i = 0; i < padding; i++)
+			{
+				mask |= 0xFF;
+				mask <<= 8;
+			}
+
+			mask <<= (56 - (8 * padding));
+
+			decryptedBlock &= mask;
+		}
+		
+		writer.write(reinterpret_cast<const char*>(&decryptedBlock), DES_BLOCK_SIZE_BYTES);
+	}
+	 
+	delete[] bytes;
+	return EXIT_SUCCESS;
 }
 

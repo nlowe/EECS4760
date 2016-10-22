@@ -28,22 +28,6 @@
 #include <random>
 #include "Util.h"
 
-
-/**
- * Converts 8 bytes to a uint64_t
- */
-inline uint64_t makeBlock(char b1, char b2, char b3, char b4, char b5, char b6, char b7, char b8)
-{
-	return charToUnsigned64(b1) << 56 |
-		   charToUnsigned64(b2) << 48 |
-		   charToUnsigned64(b3) << 40 |
-	       charToUnsigned64(b4) << 32 |
-		   charToUnsigned64(b5) << 24 |
-		   charToUnsigned64(b6) << 16 |
-		   charToUnsigned64(b7) << 8  |
-		   charToUnsigned64(b8);
-}
-
 /**
  * Generates a random 32-bit unsigned integer (Half a block)
  */
@@ -73,7 +57,7 @@ inline uint64_t RandomBlock()
  * The 8 most significant bits of the input are ignored, and the
  * 4 most significant bits of the output are 0.
  */
-inline void split56(uint64_t in, uint32_t& left, uint32_t& right)
+inline void split56(uint64_t in, uint64_t& left, uint64_t& right)
 {
 	left = (in >> 28) & MASK28;
 	right = in & MASK28;
@@ -82,7 +66,7 @@ inline void split56(uint64_t in, uint32_t& left, uint32_t& right)
 /**
  * Joins the two 28-bit halves into a 56-bit output
  */
-inline uint64_t join56(uint32_t left, uint32_t right)
+inline uint64_t join56(uint64_t left, uint64_t right)
 {
 	return (left & MASK28) << 28 | (right & MASK28);
 }
@@ -90,7 +74,7 @@ inline uint64_t join56(uint32_t left, uint32_t right)
 /**
 * Splits the specified 64 bit number into a two 32 bit halves.
 */
-inline void split64(uint64_t in, uint32_t& left, uint32_t& right)
+inline void split64(uint64_t in, uint64_t& left, uint64_t& right)
 {
 	left = in >> 32;
 	right = in & MASK28;
@@ -99,7 +83,7 @@ inline void split64(uint64_t in, uint32_t& left, uint32_t& right)
 /**
 * Joins the two 32-bit halves into a 64-bit output
 */
-inline uint64_t join64(uint32_t left, uint32_t right)
+inline uint64_t join64(uint64_t left, uint64_t right)
 {
 	return left << 31 | right;
 }
@@ -107,7 +91,7 @@ inline uint64_t join64(uint32_t left, uint32_t right)
 /**
  * Rotates the input left by the specified number of places under a 28bit mask
  */
-inline void rotL28(uint32_t& in, uint32_t places)
+inline void rotL28(uint64_t& in, uint64_t places)
 {
 	in = (in << places | in >> (28 - places)) & MASK28;
 }
@@ -115,7 +99,7 @@ inline void rotL28(uint32_t& in, uint32_t places)
 /**
  * Rotates the input right by the specified number of places under a 28bit mask
  */
-inline void rotR28(uint32_t& in, uint32_t places)
+inline void rotR28(uint64_t& in, uint64_t places)
 {
 	in = (in >> places | in << (28 - places)) & MASK28;
 }
