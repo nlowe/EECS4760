@@ -172,29 +172,27 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 	// Write encrypted header
 	writer.write(reinterpret_cast<const char*>(&outputBuffer), DES_BLOCK_SIZE_BYTES);
 
+	auto needsPadding = len % 8 != 0;
+
 	// Read file into memory
-	auto bytes = new char[len]{ 0 };
-	reader.read(bytes, len);
+	auto bytes = new uint64_t[ len/8 + (needsPadding ? 1 : 0)]{ 0 };
+	if(needsPadding)
+	{
+		// Initialize the last block to a random block for padding
+		// The high bytes will be overwritten with actual data
+		bytes[len/8] = RandomBlock();
+	}
+
+	reader.read(reinterpret_cast<char*>(bytes), len);
 	reader.close();
 
 	size_t written = 0;
+	size_t currentBlock = 0;
 	while(written < len)
 	{
 		uint64_t block;
-		if(len - written >= DES_BLOCK_SIZE_BYTES)
-		{
-			block = extract64FromBuff(bytes, written);
-			written += DES_BLOCK_SIZE_BYTES;
-		}
-		else
-		{
-			// Need padding
-			block = RandomBlock();
-			for(auto i = 0; i < len - written; i++)
-			{
-				block |= charToUnsigned64(bytes[written++]) << (56 - (8 * i));
-			}
-		}
+		block = _byteswap_uint64(bytes[currentBlock++]);
+		written += DES_BLOCK_SIZE_BYTES;
 
 		if(CBCInitialVector.HasValue())
 		{
@@ -256,14 +254,14 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		return EXIT_ERR_BAD_OUTPUT;
 	}
 
-	auto bytes = new char[len];
+	auto bytes = new uint64_t[len/8];
 
 	uint64_t keys[16];
 	computeRoundKeys(key, keys);
 
 	char rawheader[8] = { 0 };
 	reader.read(rawheader, DES_BLOCK_SIZE_BYTES);
-	reader.read(bytes, len);
+	reader.read(reinterpret_cast<char*>(bytes), len);
 
 	// Read the length of the file so we can determine how much padding we used when encrypting
 	auto headerBlock = extract64FromBuff(rawheader, 0);
@@ -283,9 +281,10 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 	auto padding = len - (decryptedHeader & MASK32);
 
 	size_t written = 0;
+	size_t currentBlock = 0;
 	while(written != len)
 	{
-		auto block = extract64FromBuff(bytes, written);
+		auto block = _byteswap_uint64(bytes[currentBlock++]);
 		written += DES_BLOCK_SIZE_BYTES;
 
 		auto decryptedBlock = TransformBlock(block, keys, DES::Action::DECRYPT);
@@ -296,23 +295,9 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		}
 
 		auto isPaddingBlock = written == len && padding > 0;
-		if (isPaddingBlock)
-		{
-			// Padding Block
-			uint64_t mask = 0;
-			for (auto i = 0; i < padding; i++)
-			{
-				mask |= 0xFF;
-				mask <<= 8;
-			}
-
-			mask <<= (56 - (8 * padding));
-
-			decryptedBlock &= mask;
-		}
 		
 		auto outputBuffer = _byteswap_uint64(decryptedBlock);
-		writer.write(reinterpret_cast<const char*>(&outputBuffer), isPaddingBlock ? padding : DES_BLOCK_SIZE_BYTES);
+		writer.write(reinterpret_cast<const char*>(&outputBuffer), isPaddingBlock ? 8-padding : DES_BLOCK_SIZE_BYTES);
 	}
 	 
 	delete[] bytes;
