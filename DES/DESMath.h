@@ -77,7 +77,7 @@ inline uint64_t join56(uint64_t left, uint64_t right)
 inline void split64(uint64_t in, uint64_t& left, uint64_t& right)
 {
 	left = in >> 32;
-	right = in & MASK28;
+	right = in & MASK32;
 }
 
 /**
@@ -85,7 +85,7 @@ inline void split64(uint64_t in, uint64_t& left, uint64_t& right)
 */
 inline uint64_t join64(uint64_t left, uint64_t right)
 {
-	return left << 31 | right;
+	return left << 32 | right;
 }
 
 /**

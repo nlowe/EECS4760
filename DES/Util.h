@@ -31,7 +31,7 @@ inline uint64_t charToUnsigned64(char c)
 
 inline uint64_t extract64FromBuff(char* buff, size_t offset)
 {
-	return *(reinterpret_cast<unsigned long long*>(buff + offset));
+	return _byteswap_uint64(*reinterpret_cast<unsigned long long*>(buff + offset));
 }
 
 template<typename T> class Optional
