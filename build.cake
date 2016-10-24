@@ -1,3 +1,5 @@
+#addin "Cake.Powershell"
+
 var target = Argument("target", "Default");
 var configuration = Argument("configuration", "Release");
 
@@ -16,6 +18,12 @@ Task("Build")
         .UseToolVersion(MSBuildToolVersion.VS2015)
         .SetMSBuildPlatform(MSBuildPlatform.x64)
     );
+});
+
+Task("Concat")
+    .Does(() =>
+{
+    StartPowershellFile("./tools/Concat-Files.ps1");
 });
 
 Task("Default")
