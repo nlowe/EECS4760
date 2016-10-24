@@ -29,6 +29,7 @@
 #include "ExitCodes.h"
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 inline uint64_t permute(uint64_t in, const uint8_t* table, size_t inputSize, size_t outputSize)
 {
@@ -150,6 +151,8 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		return EXIT_ERR_BAD_OUTPUT;
 	}
 
+	auto start = std::chrono::high_resolution_clock::now();
+	
 	uint64_t keys[16];
 	computeRoundKeys(key, keys);
 
@@ -213,6 +216,13 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 	writer.flush();
 	writer.close();
 
+	auto end = std::chrono::high_resolution_clock::now();
+
+	// Convert to floating point milliseconds
+	std::chrono::duration<double, std::milli> duration = end - start;
+
+	std::cout << "Encrypted " << currentBlock << " blocks in " << duration.count() << "ms" << std::endl;
+
 	delete[] bytes;
 	return EXIT_SUCCESS;
 }
@@ -254,6 +264,7 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		return EXIT_ERR_BAD_OUTPUT;
 	}
 
+	auto start = std::chrono::high_resolution_clock::now();
 	auto bytes = new uint64_t[len/8];
 
 	uint64_t keys[16];
@@ -299,8 +310,14 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		auto outputBuffer = _byteswap_uint64(decryptedBlock);
 		writer.write(reinterpret_cast<const char*>(&outputBuffer), isPaddingBlock ? 8-padding : DES_BLOCK_SIZE_BYTES);
 	}
+
+	auto end = std::chrono::high_resolution_clock::now();
+
+	// Convert to floating point milliseconds
+	std::chrono::duration<double, std::milli> duration = end - start;
+
+	std::cout << "Decrypted " << currentBlock << " blocks in " << duration.count() << "ms" << std::endl;
 	 
 	delete[] bytes;
 	return EXIT_SUCCESS;
 }
-
