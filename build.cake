@@ -57,6 +57,9 @@ Task("Test-ECB")
 
     DeleteFile(decryptedFile);
 
+    Information("Original Plaintext:  " + original);
+    Information("Decrypted Plaintext: " + decrypted);
+
     if(original != decrypted)
     {
         throw new Exception("Decrypted ciphertext is different from original plaintext");
@@ -99,6 +102,9 @@ Task("Test-CBC")
     var decrypted = CalculateFileHash(decryptedFile).ToHex();
 
     DeleteFile(decryptedFile);
+
+    Information("Original Plaintext:  " + original);
+    Information("Decrypted Plaintext: " + decrypted);
 
     if(original != decrypted)
     {
