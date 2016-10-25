@@ -160,15 +160,13 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 	auto headerBlock = join64(RandomHalfBlock(), len);
 
 	// Used in CBC mode only
-	uint64_t previousBlock;
 	if(CBCInitialVector.HasValue())
 	{
-		previousBlock = CBCInitialVector.GetValue();
-		headerBlock ^= previousBlock;
+		headerBlock ^= CBCInitialVector.GetValue();
 	}
 
 	auto encryptedHeader = TransformBlock(headerBlock, keys, DES::Action::ENCRYPT);
-	previousBlock = encryptedHeader;
+	auto previousBlock = encryptedHeader;
 
 	auto outputBuffer = _byteswap_uint64(encryptedHeader);
 
@@ -278,15 +276,12 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 	auto headerBlock = extract64FromBuff(rawheader, 0);
 
 	auto decryptedHeader = TransformBlock(headerBlock, keys, DES::Action::DECRYPT);
-
 	// Used in CBC mode only
-	uint64_t previousBlock;
 	if(CBCInitialVector.HasValue())
 	{
-		previousBlock = CBCInitialVector.GetValue();
-		headerBlock ^= previousBlock;
+		decryptedHeader ^= CBCInitialVector.GetValue();
 	}
-	previousBlock = decryptedHeader;
+	auto previousBlock = headerBlock;
 
 	// How much padding did we use?
 	auto padding = len - (decryptedHeader & MASK32);
@@ -302,8 +297,8 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		if(CBCInitialVector.HasValue())
 		{
 			decryptedBlock ^= previousBlock;
-			previousBlock = decryptedBlock;
 		}
+		previousBlock = block;
 
 		auto isPaddingBlock = written == len && padding > 0;
 		
