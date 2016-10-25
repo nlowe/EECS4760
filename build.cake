@@ -20,7 +20,7 @@ Task("Build")
     );
 });
 
-Task("Test")
+Task("Test-ECB")
     .IsDependentOn("Build")
     .Does(() =>
 {
@@ -62,6 +62,53 @@ Task("Test")
         throw new Exception("Decrypted ciphertext is different from original plaintext");
     }
 });
+
+Task("Test-CBC")
+    .IsDependentOn("Build")
+    .Does(() =>
+{
+    var encryptedFile = "./" + (Guid.NewGuid()).ToString() + ".des";
+    var decryptedFile = "./" + (Guid.NewGuid()).ToString() + ".desdec";
+
+    var encryptExitCode = StartProcess("./x64/" + configuration + "/DES.exe", new ProcessSettings ()
+        .WithArguments(args => args
+            .Append("-e")
+            .AppendQuoted("Pa$$w0rd")
+            .Append("CBC")
+            .AppendQuoted("./Test Files/Shakespeare.txt")
+            .AppendQuoted(encryptedFile)
+        )
+    );
+
+    if(encryptExitCode != 0) throw new Exception("Encryption failed with exit code " + encryptExitCode);
+
+    var decryptExitCode = StartProcess("./x64/" + configuration + "/DES.exe", new ProcessSettings ()
+        .WithArguments(args => args
+            .Append("-d")
+            .AppendQuoted("Pa$$w0rd")
+            .Append("CBC")
+            .AppendQuoted(encryptedFile)
+            .AppendQuoted(decryptedFile)
+        )
+    );
+
+    DeleteFile(encryptedFile);
+    if(decryptExitCode != 0) throw new Exception("Decryption failed with exit code " + decryptExitCode);
+
+    var original = CalculateFileHash("./Test Files/Shakespeare.txt").ToHex();
+    var decrypted = CalculateFileHash(decryptedFile).ToHex();
+
+    DeleteFile(decryptedFile);
+
+    if(original != decrypted)
+    {
+        throw new Exception("Decrypted ciphertext is different from original plaintext");
+    }
+});
+
+Task("Test")
+    .IsDependentOn("Test-ECB")
+    .IsDependentOn("Test-CBC");
 
 Task("Concat")
     .Does(() =>
