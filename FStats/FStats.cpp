@@ -23,6 +23,7 @@
 
 #include "stdafx.h"
 #include "ExitCodes.h"
+#include "AVL.h"
 #include <iostream>
 #include <fstream>
 
@@ -32,7 +33,7 @@ size_t singleByteCount[0xFF] = { 0 };
 size_t digraphCount[0xFFFF] = { 0 };
 size_t trigraphCount[0xFFFFFF] = { 0 };
 
-// TODO: Tree for counting unique blocks
+AVL blockCounter;
 
 int main(int argc, char* argv[])
 {
@@ -95,7 +96,8 @@ int main(int argc, char* argv[])
 
 		if(blockByteCount == 8)
 		{
-			// TODO: block analysis
+			// Block level analysis
+			blockCounter.add(block);
 			block = blockByteCount = 0;
 		}
 	
@@ -134,4 +136,5 @@ void printStats(std::ofstream &writer)
 	printCount(writer, trigraphCount, 0xFFFFFF);
 
 	writer << std::endl << std::endl << "# Block Stats" << std::endl;
+	blockCounter.inOrderPrint(writer);
 }
