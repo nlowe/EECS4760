@@ -27,18 +27,12 @@
     <ClInclude Include="ExitCodes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="AVL.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FStats.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="AVL.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
