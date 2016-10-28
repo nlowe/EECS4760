@@ -32,26 +32,29 @@
 
 // A node in an AVL Tree. Basically, a Binary Tree Node
 // with an additional field for keeping track of the "balance factor"
-struct AVLTreeNode
+class AVLTreeNode
 {
+public:
 	const uint64_t Block;
-	size_t count = 1;
+	size_t count;
 
 	// The Left Child Node
-	AVLTreeNode* Left = nullptr;
+	AVLTreeNode* Left;
 	// The Right Child Node
-	AVLTreeNode* Right = nullptr;
+	AVLTreeNode* Right;
 
-	explicit AVLTreeNode(uint64_t block) : Block(block) {}
+	explicit AVLTreeNode(uint64_t block) : Block(block), Left(nullptr), Right(nullptr), count(1), BalanceFactor(0) {}
 
 	// The balance factor of the node
 	// This is the height of the left sub-tree minus the height of the right sub-tree
-	int8_t BalanceFactor = 0;
+	int8_t BalanceFactor;
 
 	virtual ~AVLTreeNode()
 	{
 		if (Left != nullptr) delete Left;
 		if (Right != nullptr) delete Right;
+
+		Left = Right = nullptr;
 	}
 
 };
@@ -97,4 +100,3 @@ private:
 	// Performs a rotation to handle the Right-Left case at the specified rotation candidate
 	static inline void rotateRightLeft(AVLTreeNode* lastRotationCandidate, AVLTreeNode*& nextAfterRotationCandidate);
 };
-

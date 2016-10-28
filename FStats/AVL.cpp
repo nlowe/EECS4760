@@ -86,7 +86,7 @@ size_t AVL::add(uint64_t block)
 
 		// Remember where we used to be
 		candidate = previous;
-		previous = block < previous->Block ? previous->Left : previous->Right;
+		previous = goingLeft ? previous->Left : previous->Right;
 	}
 
 	// We didn't find the node already, so we have to insert a new one
@@ -109,15 +109,15 @@ size_t AVL::add(uint64_t block)
 		delta = 1;
 
 		previous = lastRotationCandidate->Left;
-		nextAfterRotationCandidate = previous;
 	}
 	else
 	{
 		delta = -1;
 
 		previous = lastRotationCandidate->Right;
-		nextAfterRotationCandidate = previous;
 	}
+	nextAfterRotationCandidate = previous;
+
 
 	// Update balance factors, moving pointers along the way
 	while (previous != toInsert)
