@@ -29,11 +29,21 @@
 
 void printStats(std::ofstream &writer);
 
-size_t singleByteCount[0xFF] = { 0 };
-size_t digraphCount[0xFFFF] = { 0 };
-size_t trigraphCount[0xFFFFFF] = { 0 };
+size_t* singleByteCount = new size_t[0xFF]{ 0 };
+size_t* digraphCount = new size_t[0xFFFF]{ 0 };
 
-AVL blockCounter;
+AVL* trigraphCount = new AVL();
+AVL* blockCounter = new AVL();
+
+int cleanup(int exitCode)
+{
+	delete[] singleByteCount;
+	delete[] digraphCount;
+	delete trigraphCount;
+	delete blockCounter;
+
+	return exitCode;
+}
 
 int main(int argc, char* argv[])
 {
@@ -51,7 +61,7 @@ int main(int argc, char* argv[])
 	if(!reader.good())
 	{
 		std::cerr << "Unable to open file for read: " << argv[1] << std::endl;
-		return EXIT_ERR_BAD_INPUT;
+		return cleanup(EXIT_ERR_BAD_INPUT);
 	}
 
 	std::ofstream writer;
@@ -60,7 +70,7 @@ int main(int argc, char* argv[])
 	if(!writer.good())
 	{
 		std::cerr << "Unable to open file for write: " << argv[2] << std::endl;
-		return EXIT_ERR_BAD_OUTPUT;
+		return cleanup(EXIT_ERR_BAD_OUTPUT);
 	}
 
 	auto hasGrandparentByte = false;
@@ -79,7 +89,7 @@ int main(int argc, char* argv[])
 		if(hasGrandparentByte)
 		{
 			// trigraph analysis
-			trigraphCount[((0ull | grandparentByte) << 16) | ((0ull | parentByte) << 8) | byte]++;
+			trigraphCount->add(((0ull | grandparentByte) << 16) | ((0ull | parentByte) << 8) | byte);
 		}
 
 		if(hasParentByte)
@@ -97,7 +107,7 @@ int main(int argc, char* argv[])
 		if(blockByteCount == 8)
 		{
 			// Block level analysis
-			blockCounter.add(block);
+			blockCounter->add(block);
 			block = blockByteCount = 0;
 		}
 	
@@ -111,7 +121,7 @@ int main(int argc, char* argv[])
 	writer.flush();
 	writer.close();
 
-	return EXIT_SUCCESS;
+	return cleanup(EXIT_SUCCESS);
 }
 
 void printCount(std::ofstream &writer, const size_t b[], size_t count)
@@ -133,8 +143,8 @@ void printStats(std::ofstream &writer)
 	printCount(writer, digraphCount, 0xFFFF);
 
 	writer << std::endl << std::endl << "# Trigraph Stats" << std::endl;
-	printCount(writer, trigraphCount, 0xFFFFFF);
+	trigraphCount->inOrderPrint(writer);
 
 	writer << std::endl << std::endl << "# Block Stats" << std::endl;
-	blockCounter.inOrderPrint(writer);
+	blockCounter->inOrderPrint(writer);
 }
