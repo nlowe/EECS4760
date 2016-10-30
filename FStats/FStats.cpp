@@ -27,7 +27,7 @@
 #include <iostream>
 #include <fstream>
 
-void printStats(std::ofstream &writer);
+int printStats(std::string prefix);
 
 AVL* singleByteCount = new AVL();
 AVL* digraphCount = new AVL();
@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
 {
 	if(argc != 3)
 	{
-		std::cerr << "syntax: fstats <file> <output.tsv>" << std::endl;
+		std::cerr << "syntax: fstats <file> <output prefix>" << std::endl;
 		return EXIT_ERR_SYNTAX;
 	}
 
@@ -61,15 +61,6 @@ int main(int argc, char* argv[])
 	{
 		std::cerr << "Unable to open file for read: " << argv[1] << std::endl;
 		return cleanup(EXIT_ERR_BAD_INPUT);
-	}
-
-	std::ofstream writer;
-	writer.open(argv[2], std::ios::out);
-
-	if(!writer.good())
-	{
-		std::cerr << "Unable to open file for write: " << argv[2] << std::endl;
-		return cleanup(EXIT_ERR_BAD_OUTPUT);
 	}
 
 	auto hasGrandparentByte = false;
@@ -120,26 +111,39 @@ int main(int argc, char* argv[])
 	}
 
 	reader.close();
-	printStats(writer);
-
-	writer.flush();
-	writer.close();
-
 	delete[] bytes;
-	return cleanup(EXIT_SUCCESS);
+	return cleanup(printStats(std::string(argv[2])));
 }
 
-void printStats(std::ofstream &writer)
+int printStats(std::string prefix)
 {
-	writer << "# Byte Stats" << std::endl;
-	singleByteCount->inOrderPrint(writer);
+	std::ofstream singleByteWriter, digraphWriter, trigraphWriter, blockWriter;
+	singleByteWriter.open(prefix + ".single.tsv", std::ios::out);
+	digraphWriter.open(prefix + ".digraph.tsv", std::ios::out);
+	trigraphWriter.open(prefix + ".trigraph.tsv", std::ios::out);
+	blockWriter.open(prefix + ".blocks.tsv", std::ios::out);
 
-	writer << std::endl << std::endl << "# Digraph Stats" << std::endl;
-	digraphCount->inOrderPrint(writer);
+	if (singleByteWriter.bad()) return EXIT_ERR_BAD_OUTPUT;
+	if (digraphWriter.bad()) return EXIT_ERR_BAD_OUTPUT;
+	if (trigraphWriter.bad()) return EXIT_ERR_BAD_OUTPUT;
+	if (blockWriter.bad()) return EXIT_ERR_BAD_OUTPUT;
 
-	writer << std::endl << std::endl << "# Trigraph Stats" << std::endl;
-	trigraphCount->inOrderPrint(writer);
+	singleByteCount->inOrderPrint(singleByteWriter);
+	digraphCount->inOrderPrint(digraphWriter);
+	trigraphCount->inOrderPrint(trigraphWriter);
+	blockCounter->inOrderPrint(blockWriter);
 
-	writer << std::endl << std::endl << "# Block Stats" << std::endl;
-	blockCounter->inOrderPrint(writer);
+	singleByteWriter.flush();
+	singleByteWriter.close();
+
+	digraphWriter.flush();
+	digraphWriter.close();
+
+	trigraphWriter.flush();
+	trigraphWriter.close();
+
+	blockWriter.flush();
+	blockWriter.close();
+
+	return EXIT_SUCCESS;
 }
