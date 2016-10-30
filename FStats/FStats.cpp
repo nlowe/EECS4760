@@ -23,6 +23,7 @@
 
 #include "stdafx.h"
 #include "ExitCodes.h"
+#include "AVL.h"
 #include <iostream>
 #include <fstream>
 
