@@ -28,11 +28,20 @@
 
 void printStats(std::ofstream &writer);
 
-size_t singleByteCount[0xFF] = { 0 };
-size_t digraphCount[0xFFFF] = { 0 };
-size_t trigraphCount[0xFFFFFF] = { 0 };
+AVL* singleByteCount = new AVL();
+AVL* digraphCount = new AVL();
+AVL* trigraphCount = new AVL();
+AVL* blockCounter = new AVL();
 
-// TODO: Tree for counting unique blocks
+int cleanup(int exitCode)
+{
+	delete singleByteCount;
+	delete digraphCount;
+	delete trigraphCount;
+	delete blockCounter;
+
+	return exitCode;
+}
 
 int main(int argc, char* argv[])
 {
@@ -45,12 +54,12 @@ int main(int argc, char* argv[])
 	std::cout << "Collecting stats on '" << argv[1] << "' to '" << argv[2] << "'" << std::endl;
 
 	std::ifstream reader;
-	reader.open(argv[1], std::ios::binary | std::ios::in);
+	reader.open(argv[1], std::ios::binary | std::ios::ate | std::ios::in);
 
 	if(!reader.good())
 	{
 		std::cerr << "Unable to open file for read: " << argv[1] << std::endl;
-		return EXIT_ERR_BAD_INPUT;
+		return cleanup(EXIT_ERR_BAD_INPUT);
 	}
 
 	std::ofstream writer;
@@ -59,7 +68,7 @@ int main(int argc, char* argv[])
 	if(!writer.good())
 	{
 		std::cerr << "Unable to open file for write: " << argv[2] << std::endl;
-		return EXIT_ERR_BAD_OUTPUT;
+		return cleanup(EXIT_ERR_BAD_OUTPUT);
 	}
 
 	auto hasGrandparentByte = false;
@@ -69,22 +78,27 @@ int main(int argc, char* argv[])
 
 	uint8_t blockByteCount = 0;
 
-	while(!reader.eof())
-	{
-		reader.read(reinterpret_cast<char*>(&byte), 1);
+	auto len = reader.tellg();
+	auto bytes = new char[len]{ 0 };
+	reader.seekg(0, std::ios::beg);
+	reader.read(bytes, len);
 
-		singleByteCount[byte]++;
+	auto currentByte = 0;
+	while(currentByte < len)
+	{
+		byte = bytes[currentByte++];
+		singleByteCount->add(byte);
 
 		if(hasGrandparentByte)
 		{
 			// trigraph analysis
-			trigraphCount[((0ull | grandparentByte) << 16) | ((0ull | parentByte) << 8) | byte]++;
+			trigraphCount->add(((0ull | grandparentByte) << 16) | ((0ull | parentByte) << 8) | byte);
 		}
 
 		if(hasParentByte)
 		{
 			// digraph analysis
-			digraphCount[(0ul | parentByte) << 8 | byte]++;
+			digraphCount->add((0ul | parentByte) << 8 | byte);
 			grandparentByte = parentByte;
 			hasGrandparentByte = true;
 		}
@@ -95,10 +109,11 @@ int main(int argc, char* argv[])
 
 		if(blockByteCount == 8)
 		{
-			// TODO: block analysis
+			// Block level analysis
+			blockCounter->add(block);
 			block = blockByteCount = 0;
 		}
-	
+
 		hasParentByte = true;
 		parentByte = byte;
 	}
@@ -109,29 +124,21 @@ int main(int argc, char* argv[])
 	writer.flush();
 	writer.close();
 
-	return EXIT_SUCCESS;
-}
-
-void printCount(std::ofstream &writer, const size_t b[], size_t count)
-{
-	for(size_t i = 0; i < count; i++)
-	{
-		if (b[i] == 0) continue;
-		writer << std::uppercase << std::hex << i;
-		writer << "\t" << std::dec << b[i] << std::endl;
-	}
+	delete[] bytes;
+	return cleanup(EXIT_SUCCESS);
 }
 
 void printStats(std::ofstream &writer)
 {
 	writer << "# Byte Stats" << std::endl;
-	printCount(writer, singleByteCount, 0xFF);
+	singleByteCount->inOrderPrint(writer);
 
 	writer << std::endl << std::endl << "# Digraph Stats" << std::endl;
-	printCount(writer, digraphCount, 0xFFFF);
+	digraphCount->inOrderPrint(writer);
 
 	writer << std::endl << std::endl << "# Trigraph Stats" << std::endl;
-	printCount(writer, trigraphCount, 0xFFFFFF);
+	trigraphCount->inOrderPrint(writer);
 
 	writer << std::endl << std::endl << "# Block Stats" << std::endl;
+	blockCounter->inOrderPrint(writer);
 }
