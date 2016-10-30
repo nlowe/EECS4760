@@ -29,16 +29,15 @@
 
 void printStats(std::ofstream &writer);
 
-size_t* singleByteCount = new size_t[0xFF]{ 0 };
-size_t* digraphCount = new size_t[0xFFFF]{ 0 };
-
+AVL* singleByteCount = new AVL();
+AVL* digraphCount = new AVL();
 AVL* trigraphCount = new AVL();
 AVL* blockCounter = new AVL();
 
 int cleanup(int exitCode)
 {
-	delete[] singleByteCount;
-	delete[] digraphCount;
+	delete singleByteCount;
+	delete digraphCount;
 	delete trigraphCount;
 	delete blockCounter;
 
@@ -56,7 +55,7 @@ int main(int argc, char* argv[])
 	std::cout << "Collecting stats on '" << argv[1] << "' to '" << argv[2] << "'" << std::endl;
 
 	std::ifstream reader;
-	reader.open(argv[1], std::ios::binary | std::ios::in);
+	reader.open(argv[1], std::ios::binary | std::ios::ate | std::ios::in);
 
 	if(!reader.good())
 	{
@@ -80,11 +79,16 @@ int main(int argc, char* argv[])
 
 	uint8_t blockByteCount = 0;
 
-	while(!reader.eof())
-	{
-		reader.read(reinterpret_cast<char*>(&byte), 1);
+	auto len = reader.tellg();
+	auto bytes = new char[len]{ 0 };
+	reader.seekg(0, std::ios::beg);
+	reader.read(bytes, len);
 
-		singleByteCount[byte]++;
+	auto currentByte = 0;
+	while(currentByte < len)
+	{
+		byte = bytes[currentByte++];
+		singleByteCount->add(byte);
 
 		if(hasGrandparentByte)
 		{
@@ -95,7 +99,7 @@ int main(int argc, char* argv[])
 		if(hasParentByte)
 		{
 			// digraph analysis
-			digraphCount[(0ul | parentByte) << 8 | byte]++;
+			digraphCount->add((0ul | parentByte) << 8 | byte);
 			grandparentByte = parentByte;
 			hasGrandparentByte = true;
 		}
@@ -121,26 +125,17 @@ int main(int argc, char* argv[])
 	writer.flush();
 	writer.close();
 
+	delete[] bytes;
 	return cleanup(EXIT_SUCCESS);
-}
-
-void printCount(std::ofstream &writer, const size_t b[], size_t count)
-{
-	for(size_t i = 0; i < count; i++)
-	{
-		if (b[i] == 0) continue;
-		writer << std::uppercase << std::hex << i;
-		writer << "\t" << std::dec << b[i] << std::endl;
-	}
 }
 
 void printStats(std::ofstream &writer)
 {
 	writer << "# Byte Stats" << std::endl;
-	printCount(writer, singleByteCount, 0xFF);
+	singleByteCount->inOrderPrint(writer);
 
 	writer << std::endl << std::endl << "# Digraph Stats" << std::endl;
-	printCount(writer, digraphCount, 0xFFFF);
+	digraphCount->inOrderPrint(writer);
 
 	writer << std::endl << std::endl << "# Trigraph Stats" << std::endl;
 	trigraphCount->inOrderPrint(writer);
