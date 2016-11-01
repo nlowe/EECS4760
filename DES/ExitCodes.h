@@ -29,3 +29,4 @@ const int EXIT_ERR_ACTION = -3;
 const int EXIT_ERR_BAD_INPUT = -4;
 const int EXIT_ERR_TOO_BIG = -5;
 const int EXIT_ERR_BAD_OUTPUT = -6;
+const int EXIT_ERR_KEY_TOO_WEAK = -7;

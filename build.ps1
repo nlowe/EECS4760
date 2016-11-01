@@ -52,6 +52,14 @@ Param(
     [switch]$WhatIf,
     [switch]$Mono,
     [switch]$SkipToolPackageRestore,
+
+    [ValidateSet("Yes","Warn","No")]
+    [string]$DisallowWeakKeys = "Yes",
+    [ValidateSet("Yes","Warn","No")]
+    [string]$DisallowSemiWeakKeys = "Yes",
+    [ValidateSet("Yes","Warn","No")]
+    [string]$DisallowPossiblyWeakKeys = "Warn",
+
     [Parameter(Position=1,Mandatory=$false,ValueFromRemainingArguments=$true)]
     [string[]]$ScriptArgs
 )
@@ -186,5 +194,5 @@ if (!(Test-Path $CAKE_EXE)) {
 
 # Start Cake
 Write-Host "Running build script..."
-Invoke-Expression "& `"$CAKE_EXE`" `"$Script`" -target=`"$Target`" -configuration=`"$Configuration`" -verbosity=`"$Verbosity`" $UseMono $UseDryRun $UseExperimental $ScriptArgs"
+Invoke-Expression "& `"$CAKE_EXE`" `"$Script`" -target=`"$Target`" -configuration=`"$Configuration`" -verbosity=`"$Verbosity`" -DisallowWeakKeys=`"$DisallowWeakKeys`" -DisallowSemiWeakKeys=`"$DisallowSemiWeakKeys`" -DisallowPossiblyWeakKeys=`"$DisallowPossiblyWeakKeys`" $UseMono $UseDryRun $UseExperimental $ScriptArgs"
 exit $LASTEXITCODE

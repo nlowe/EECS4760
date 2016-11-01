@@ -161,12 +161,58 @@
     <ClInclude Include="crypto.h" />
     <ClInclude Include="DESMath.h" />
     <ClInclude Include="ExitCodes.h" />
+    <ClInclude Include="WeakKeys.h" />
     <ClInclude Include="Mask.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="opts.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
+  <ItemDefinitionGroup Condition="'$(ENFORCE_NO_WEAK_KEYS)' != ''">
+    <ClCompile>
+        <AdditionalOptions>/DENFORCE_NO_WEAK_KEYS=1 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(WARN_WEAK_KEYS)' != ''">
+    <ClCompile>
+        <AdditionalOptions>/DWARN_WEAK_KEYS=1 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(NOENFORCE_WEAK_KEYS)' != ''">
+    <ClCompile>
+        <AdditionalOptions>/DNOENFORCE_WEAK_KEYS=1 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(ENFORCE_NO_SEMI_WEAK_KEYS)' != ''">
+    <ClCompile>
+        <AdditionalOptions>/DENFORCE_NO_SEMI_WEAK_KEYS=1 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(WARN_SEMI_WEAK_KEYS)' != ''">
+    <ClCompile>
+        <AdditionalOptions>/DWARN_SEMI_WEAK_KEYS=1 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(NOENFORCE_SEMI_WEAK_KEYS)' != ''">
+    <ClCompile>
+        <AdditionalOptions>/DNOENFORCE_SEMI_WEAK_KEYS=1 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(ENFORCE_NO_POSSIBLY_WEAK_KEYS)' != ''">
+    <ClCompile>
+        <AdditionalOptions>/DENFORCE_NO_POSSIBLY_WEAK_KEYS=1 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(WARN_POSSIBLY_WEAK_KEYS)' != ''">
+    <ClCompile>
+        <AdditionalOptions>/DWARN_POSSIBLY_WEAK_KEYS=1 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(NOENFORCE_POSSIBLY_WEAK_KEYS)' != ''">
+    <ClCompile>
+        <AdditionalOptions>/DNOENFORCE_POSSIBLY_WEAK_KEYS=1 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="crypto.cpp" />
     <ClCompile Include="DES.cpp">

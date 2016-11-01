@@ -26,6 +26,7 @@
 #include "crypto.h"
 #include "Boxes.h"
 #include "DESMath.h"
+#include "WeakKeys.h"
 #include "ExitCodes.h"
 #include <iostream>
 #include <fstream>
@@ -120,9 +121,49 @@ uint64_t TransformBlock(uint64_t block, uint64_t (&keys)[16], DES::Action action
 	return permute(finalBlock, FinalBlockPermutation, 64, 64);
 }
 
+bool checkKey(uint64_t key)
+{
+#if !defined(NOENFORCE_WEAK_KEYS)
+	if(isWeakKey(key))
+	{
+		std::cerr << "WARNING: Weak Key specified" << std::endl;
+#if defined(ENFORCE_NO_WEAK_KEYS)
+		std::cerr << "Recompile with WARN_WEAK_KEYS or NOENFORCE_WEAK_KEYS to allow weak keys" << std::endl;
+		return false;
+#endif
+	}
+#endif
+
+#if !defined(NOENFORCE_SEMI_WEAK_KEYS)
+	if(isSemiWeakKey(key))
+	{
+		std::cerr << "WARNING: Semi-Weak Key specified" << std::endl;
+#if defined(ENFORCE_NO_SEMI_WEAK_KEYS)
+		std::cerr << "Recompile with WARN_SEMI_WEAK_KEYS or NOENFORCE_SEMI_WEAK_KEYS to allow semi-weak keys" << std::endl;
+		return false;
+#endif
+	}
+#endif
+
+#if !defined(NOENFORCE_POSSIBLY_WEAK_KEYS)
+	if(isPossiblyWeakKey(key))
+	{
+		std::cerr << "WARNING: Possibly-weak Key specified" << std::endl;
+#if defined(ENFORCE_NO_POSSIBLY_WEAK_KEYS)
+		std::cerr << "Recompile with WARN_POSSIBLY_WEAK_KEYS or NOENFORCE_POSSIBLY_WEAK_KEYS to allow possibly-weak keys" << std::endl;
+		return false;
+#endif
+	}
+#endif
+
+	return true;
+}
+
 
 int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector)
 {
+	if (!checkKey(key)) return EXIT_ERR_KEY_TOO_WEAK;
+
 	std::ifstream reader;
 	reader.open(inputFile, std::ios::binary | std::ios::ate | std::ios::in);
 
