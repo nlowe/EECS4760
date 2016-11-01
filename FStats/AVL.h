@@ -28,6 +28,7 @@
 #pragma once
 #include <cstdint>
 #include <fstream>
+#include <functional>
 
 
 // A node in an AVL Tree. Basically, a Binary Tree Node
@@ -75,14 +76,21 @@ public:
 	//		The count of the key
 	size_t add(uint64_t key);
 
+	void each(std::function<void(std::pair<uint64_t, size_t>*)> func) const { eachFrom(Root, func); }
+
 	// Prints all blocks and their occurrance count in alphabetical order to the specified writer
 	void inOrderPrint(std::ofstream &writer) const { inOrderPrint(Root, writer); }
 
 	// Returns true iff the tree is empty
 	bool isEmpty() const { return Root == nullptr; }
+
+	size_t Size() const	{ return size; }
 	
 private:
+	size_t size = 0;
 	AVLTreeNode* Root = nullptr;
+
+	void eachFrom(AVLTreeNode* node, std::function<void(std::pair<uint64_t, size_t>*)> &func) const;
 
 	// Recursively prints the subtree starting from the specified node in order
 	void inOrderPrint(AVLTreeNode* node, std::ofstream &writer) const;

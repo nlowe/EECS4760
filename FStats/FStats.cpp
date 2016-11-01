@@ -26,7 +26,10 @@
 #include "AVL.h"
 #include <iostream>
 #include <fstream>
+#include "MaxPriorityQueue.h"
 
+int cleanup(int exitCode);
+void printTopNElements(AVL* tree, size_t n, std::ofstream& writer);
 int printStats(std::string prefix);
 
 AVL* singleByteCount = new AVL();
@@ -34,22 +37,19 @@ AVL* digraphCount = new AVL();
 AVL* trigraphCount = new AVL();
 AVL* blockCounter = new AVL();
 
-int cleanup(int exitCode)
-{
-	delete singleByteCount;
-	delete digraphCount;
-	delete trigraphCount;
-	delete blockCounter;
-
-	return exitCode;
-}
+size_t TOP_N = 100;
 
 int main(int argc, char* argv[])
 {
-	if(argc != 3)
+	if(argc != 3 && argc != 4)
 	{
-		std::cerr << "syntax: fstats <file> <output prefix>" << std::endl;
+		std::cerr << "syntax: fstats <file> <output prefix> [n]" << std::endl;
 		return EXIT_ERR_SYNTAX;
+	}
+
+	if(argc == 4)
+	{
+		TOP_N = std::strtoull(argv[3], nullptr, 10);
 	}
 
 	std::cout << "Collecting stats on '" << argv[1] << "' to '" << argv[2] << "'" << std::endl;
@@ -115,6 +115,38 @@ int main(int argc, char* argv[])
 	return cleanup(printStats(std::string(argv[2])));
 }
 
+int cleanup(int exitCode)
+{
+	delete singleByteCount;
+	delete digraphCount;
+	delete trigraphCount;
+	delete blockCounter;
+
+	return exitCode;
+}
+
+void printTopNElements(AVL* tree, size_t n, std::ofstream& writer)
+{
+	auto q = new MaxPriorityQueue(tree->Size());
+
+	// Enqueue all the things
+	tree->each([q](std::pair<uint64_t, size_t>* e)
+	{
+		q->enqueue(e);
+	});
+
+	writer << "# " << std::dec << tree->Size() << " distinct elements (Top " << n << " most frequent by count)" << std::endl;
+	writer << "# " << "hex\tdec\tcount" << std::endl;
+	for(auto i = 0; i < n; i++)
+	{
+		auto e = q->dequeue();
+		writer << std::hex << e->first << "\t" << std::dec << e->first << "\t" << e->second << std::endl;
+		if (q->isEmpty()) break;
+	}
+
+	delete q;
+}
+
 int printStats(std::string prefix)
 {
 	std::ofstream singleByteWriter, digraphWriter, trigraphWriter, blockWriter;
@@ -128,10 +160,10 @@ int printStats(std::string prefix)
 	if (trigraphWriter.bad()) return EXIT_ERR_BAD_OUTPUT;
 	if (blockWriter.bad()) return EXIT_ERR_BAD_OUTPUT;
 
-	singleByteCount->inOrderPrint(singleByteWriter);
-	digraphCount->inOrderPrint(digraphWriter);
-	trigraphCount->inOrderPrint(trigraphWriter);
-	blockCounter->inOrderPrint(blockWriter);
+	printTopNElements(singleByteCount, TOP_N, singleByteWriter);
+	printTopNElements(digraphCount, TOP_N, digraphWriter);
+	printTopNElements(trigraphCount, TOP_N, trigraphWriter);
+	printTopNElements(blockCounter, TOP_N, blockWriter);
 
 	singleByteWriter.flush();
 	singleByteWriter.close();

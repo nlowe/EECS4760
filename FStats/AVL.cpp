@@ -45,6 +45,7 @@ AVL::~AVL()
 // and rotations may be performed to keep the tree balanced.
 size_t AVL::add(uint64_t block)
 {
+	this->size++;
 	// The tree is empty, just update the root pointer
 	if (isEmpty())
 	{
@@ -72,6 +73,7 @@ size_t AVL::add(uint64_t block)
 		if (block == previous->Block)
 		{
 			// The block we're inserting is already in the tree
+			this->size--;
 			previous->count++;
 			return previous->count;
 		}
@@ -295,6 +297,15 @@ void AVL::rotateRightLeft(AVLTreeNode* A, AVLTreeNode*& B)
 
 	C->BalanceFactor = 0;
 	B = C;
+}
+
+void AVL::eachFrom(AVLTreeNode* node, std::function<void(std::pair<uint64_t, size_t>*)>& func) const
+{
+	if (node == nullptr) return;
+
+	eachFrom(node->Left, func);
+	func(new std::pair<uint64_t, size_t>(node->Block, node->count));
+	eachFrom(node->Right, func);
 }
 
 // A helper function to recursively print the payloads of the specified sub-tree in-order
