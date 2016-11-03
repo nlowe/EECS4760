@@ -24,7 +24,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * MaxPriorityQueue.h an implementation of a Max Priority Queue
+ * MaxPriorityQueue.h an implementation of a Max Priority Queue, specifically designed to work with
+ *		pairs of 64-bit blocks and counts
  *
  */
 #pragma once

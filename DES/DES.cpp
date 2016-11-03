@@ -33,7 +33,10 @@ void printHelp();
 
 int main(int argc, char* argv[])
 {
+	// Seed the RNG
 	srand(time(nullptr));
+
+	// Parse Options
 	Options opts(argc, argv);
 
 	if(opts.Errors)

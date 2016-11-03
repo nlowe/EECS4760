@@ -24,16 +24,26 @@
 #pragma once
 #include <stdexcept>
 
+/**
+ * Expand th especified char to a uint64_t
+ */
 inline uint64_t charToUnsigned64(char c)
 {
 	return 0ull | reinterpret_cast<unsigned char&>(c);
 }
 
+/**
+ * Extract a uint64_t from the specified char buffer
+ */
 inline uint64_t extract64FromBuff(char* buff, size_t offset)
 {
+	// Windows is LE. Since that's the only platform we support, always swap the byte order
 	return _byteswap_uint64(*reinterpret_cast<unsigned long long*>(buff + offset));
 }
 
+/**
+ * An optional element
+ */
 template<typename T> class Optional
 {
 public:
@@ -47,8 +57,19 @@ public:
 		
 	}
 
+	/**
+	 * Gets the value. If no value has been set, throws std::domain_error
+	 */
 	T GetValue() { if (!hasValue) { throw std::domain_error("No value set"); } return value; }
+	
+	/**
+	 * Sets the value
+	 */
 	void SetValue(T v) { value = v; hasValue = true; }
+
+	/**
+	 * Returns true iff a value has been set
+	 */
 	bool HasValue() const { return hasValue; }
 
 private:

@@ -31,22 +31,39 @@
 #include <iostream>
 #include <regex>
 
+/**
+ * The project spec does not specify a means for using a different IV, only that this one
+ * should be used. I guess recompile with a different IV if you need a different one
+ */
 #define DEFAULT_IV 0xFB3C718924605AED
 
+/**
+ * A class for parsing command-line options
+ */
 class Options
 {
 public:
+	/** The action to perform */
 	DES::Action Action = DES::Action::UNKNOWN_ACTION;
+	/** The mode to operate in */
 	DES::Mode Mode = DES::Mode::UNKNOWN_MODE;
 
+	/** The key to use */
 	uint64_t Key = 0;
+	/** The path to the input file */
 	std::string Input;
+	/** The path to the output file */
 	std::string Output;
 
+	/** The initialization vector to use in CBC Mode. Not specified for ECB mode */
 	Optional<uint64_t> IV;
 
+	/** Whether or not errors were encountered */
 	bool Errors = false;
 
+	/**
+	 * Construct the options using the specified arguments
+	 */
 	Options(int argc, char* argv[])
 	{
 		if(argc != 6)

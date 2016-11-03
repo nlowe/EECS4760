@@ -24,8 +24,11 @@
 #pragma once
 #include <cstdint>
 
+/** The number of weak keys */
 #define NUM_WEAK_KEYS 4
+/** The number of semi-weak keys */
 #define NUM_SEMI_WEAK_KEYS 16
+/** The number of possibly-weak keys */
 #define NUM_POSSIBLY_WEAK_KEYS 48
 
 // Enforce weak keys by default
@@ -43,8 +46,10 @@
 #define WARN_POSSIBLY_WEAK_KEYS 1
 #endif
 
+/** The list of weak keys */
 const uint64_t WEAK_KEYS[] = { 0x0101010101010101, 0x1F1F1F1F0E0E0E0E, 0xE0E0E0E0F1F1F1F1, 0xFEFEFEFEFEFEFEFE };
 
+/** The list of semi-weak keys */
 const uint64_t SEMI_WEAK_KEYS[] = {
 	0x01FE01FE01FE01FE, 0xFE01FE01FE01FE01,
 	0x1FE01FE00EF10EF1, 0xE01FE01FF10EF10E,
@@ -54,6 +59,7 @@ const uint64_t SEMI_WEAK_KEYS[] = {
 	0xE0FEE0FEF1FEF1FE, 0xFEE0FEE0FEF1FEF1
 };
 
+/** Thw list of possibly weak keys */
 const uint64_t POSSIBLY_WEAK_KEYS[] = {
 	0x1F1F01010E0E0101, 0xFEE01F01FEF10E01, 0xFE1FE001FE0EF101, 0x1FE0FE010EF1FE01,
 	0xE00101E0F10101F1, 0xE0011FFEF1010EFE, 0x0101E0E00101F1F1, 0x0101FEFE0101FEFE,
@@ -69,6 +75,9 @@ const uint64_t POSSIBLY_WEAK_KEYS[] = {
 	0xE01F01FEF10E01FE, 0x01E01FFE01F10EFE, 0x011FE0FE010EF1FE, 0xE0E0FEFEF1F1FEFE
 };
 
+/**
+ * Returns true iff the specified key is a weak key
+ */
 inline bool isWeakKey(uint64_t key)
 {
 	for(auto i = 0; i < NUM_WEAK_KEYS; i++)
@@ -79,6 +88,9 @@ inline bool isWeakKey(uint64_t key)
 	return false;
 }
 
+/**
+ * Returns true iff the specified key is a semi-weak key
+ */
 inline bool isSemiWeakKey(uint64_t key)
 {
 	for(auto i = 0; i < NUM_SEMI_WEAK_KEYS; i++)
@@ -89,6 +101,9 @@ inline bool isSemiWeakKey(uint64_t key)
 	return false;
 }
 
+/**
+ * Returns true iff the specified key is a semi-weak key
+ */
 inline bool isPossiblyWeakKey(uint64_t key)
 {
 	for(auto i = 0; i < NUM_POSSIBLY_WEAK_KEYS; i++)

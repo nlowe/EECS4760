@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * crypto.cpp - An implementation of DES in ECB mode
+ * crypto.cpp - An implementation of DES in ECB and CBC mode
  */
 
 #include "stdafx.h"
@@ -32,6 +32,9 @@
 #include <fstream>
 #include <chrono>
 
+/**
+ * Permutes the provided value using the specified table and input / output sizes
+ */
 inline uint64_t permute(uint64_t in, const uint8_t* table, size_t inputSize, size_t outputSize)
 {
 	uint64_t out = 0;
@@ -44,6 +47,9 @@ inline uint64_t permute(uint64_t in, const uint8_t* table, size_t inputSize, siz
 	return out;
 }
 
+/**
+ * Runs the specified block through the substitution boxes
+ */
 inline uint64_t substitute(uint64_t in)
 {
 	auto b1 = extract6(in, 1);
@@ -65,6 +71,9 @@ inline uint64_t substitute(uint64_t in)
 		   S[7][srow(b8)][scol(b8)];
 }
 
+/**
+ * Computes the 16 keys for individual rounds
+ */
 void computeRoundKeys(uint64_t key, uint64_t (&keys)[16])
 {
 	// Initialize the key
@@ -82,6 +91,9 @@ void computeRoundKeys(uint64_t key, uint64_t (&keys)[16])
 	}
 }
 
+/**
+ * Transforms the block using the specified key schedule
+ */
 uint64_t TransformBlock(uint64_t block, uint64_t (&keys)[16], DES::Action action)
 {
 	// Perform the initial permutation on the plaintext
@@ -121,6 +133,11 @@ uint64_t TransformBlock(uint64_t block, uint64_t (&keys)[16], DES::Action action
 	return permute(finalBlock, FinalBlockPermutation, 64, 64);
 }
 
+/**
+ * Checks the specified key to see if it is weak, semi-weak, or possibly weak
+ *
+ * This is dependent on preprocessor variables defined at build-time
+ */
 bool checkKey(uint64_t key)
 {
 #if !defined(NOENFORCE_WEAK_KEYS)
@@ -159,11 +176,17 @@ bool checkKey(uint64_t key)
 	return true;
 }
 
-
+/**
+ * Encrypt the file at the specified path to the specified output path, using the provided key.
+ *
+ * If the mode is CBC, the IV should also be specified
+ */
 int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector)
 {
+	// Check for weak, semi-weak, and probably-weak keys
 	if (!checkKey(key)) return EXIT_ERR_KEY_TOO_WEAK;
 
+	// Open the input file for read in binary mode
 	std::ifstream reader;
 	reader.open(inputFile, std::ios::binary | std::ios::ate | std::ios::in);
 
@@ -173,6 +196,7 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		return EXIT_ERR_BAD_INPUT;
 	}
 
+	// How big is it?
 	size_t len = reader.tellg();
 	if (len > MASK31)
 	{
@@ -180,8 +204,10 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		return EXIT_ERR_TOO_BIG;
 	}
 
+	// Seek to the start of the file
 	reader.seekg(0, std::ios::beg);
 
+	// Open the output file for write in binary mode
 	std::ofstream writer;
 	writer.open(outputFile, std::ios::binary | std::ios::out);
 
@@ -194,6 +220,7 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 
 	auto start = std::chrono::high_resolution_clock::now();
 	
+	// Compute key schedule
 	uint64_t keys[16];
 	computeRoundKeys(key, keys);
 
@@ -206,9 +233,11 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		headerBlock ^= CBCInitialVector.GetValue();
 	}
 
+	// Encrypt the header
 	auto encryptedHeader = TransformBlock(headerBlock, keys, DES::Action::ENCRYPT);
 	auto previousBlock = encryptedHeader;
 
+	// Windows is LE. Since that's the only platform we support, always swap the byte order
 	auto outputBuffer = _byteswap_uint64(encryptedHeader);
 
 	// Write encrypted header
@@ -216,7 +245,7 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 
 	auto needsPadding = len % 8 != 0;
 
-	// Read file into memory
+	// Allocate enough froom for the file
 	auto bytes = new uint64_t[ len/8 + (needsPadding ? 1 : 0)]{ 0 };
 	if(needsPadding)
 	{
@@ -225,6 +254,7 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		bytes[len/8] = RandomBlock();
 	}
 
+	// Read the file. Yup, that's totally a char* buffer
 	reader.read(reinterpret_cast<char*>(bytes), len);
 	reader.close();
 
@@ -232,10 +262,11 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 	size_t currentBlock = 0;
 	while(written < len)
 	{
-		uint64_t block;
-		block = _byteswap_uint64(bytes[currentBlock++]);
+		// Windows is LE. Since that's the only platform we support, always swap the byte order
+		auto block = _byteswap_uint64(bytes[currentBlock++]);
 		written += DES_BLOCK_SIZE_BYTES;
 
+		// Encrypt the block
 		if(CBCInitialVector.HasValue())
 		{
 			block ^= previousBlock;
@@ -246,6 +277,7 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 			previousBlock = encryptedBlock;
 		}
 
+		// Windows is LE. Since that's the only platform we support, always swap the byte order
 		outputBuffer = _byteswap_uint64(encryptedBlock);
 
 		// Write block
@@ -266,8 +298,14 @@ int DES::EncryptFile(std::string inputFile, std::string outputFile, uint64_t key
 	return EXIT_SUCCESS;
 }
 
+/**
+s * Decrypt the file at the specified path to the specified output path, using the provided key.
+ *
+ * If the mode is CBC, the IV should also be specified
+ */
 int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector)
 {
+	// Open the input file for read in binary mode
 	std::ifstream reader;
 	reader.open(inputFile, std::ios::binary | std::ios::ate | std::ios::in);
 
@@ -277,6 +315,7 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		return EXIT_ERR_BAD_INPUT;
 	}
 
+	// How big is it?
 	size_t len = reader.tellg();
 	len -= DES_BLOCK_SIZE_BYTES;
 	if (len > MASK31)
@@ -291,8 +330,10 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 		return EXIT_ERR_BAD_INPUT;
 	}
 
+	// Seek to the start of the file
 	reader.seekg(0, std::ios::beg);
 
+	// Open the output file for write in binary mode
 	std::ofstream writer;
 	writer.open(outputFile, std::ios::binary | std::ios::out);
 
@@ -306,9 +347,11 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 	auto start = std::chrono::high_resolution_clock::now();
 	auto bytes = new uint64_t[len/8];
 
+	// Compute key schedule
 	uint64_t keys[16];
 	computeRoundKeys(key, keys);
 
+	// Read in the header, and then the file
 	char rawheader[8] = { 0 };
 	reader.read(rawheader, DES_BLOCK_SIZE_BYTES);
 	reader.read(reinterpret_cast<char*>(bytes), len);
@@ -331,9 +374,11 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 	size_t currentBlock = 0;
 	while(written != len)
 	{
+		// Windows is LE. Since that's the only platform we support, always swap the byte order
 		auto block = _byteswap_uint64(bytes[currentBlock++]);
 		written += DES_BLOCK_SIZE_BYTES;
 
+		// Decrypt the block
 		auto decryptedBlock = TransformBlock(block, keys, DES::Action::DECRYPT);
 		if(CBCInitialVector.HasValue())
 		{
@@ -343,7 +388,10 @@ int DES::DecryptFile(std::string inputFile, std::string outputFile, uint64_t key
 
 		auto isPaddingBlock = written == len && padding > 0;
 		
+		// Windows is LE. Since that's the only platform we support, always swap the byte order
 		auto outputBuffer = _byteswap_uint64(decryptedBlock);
+
+		// If we're at the padding block (final block), only write the real bytes, not the padding
 		writer.write(reinterpret_cast<const char*>(&outputBuffer), isPaddingBlock ? 8-padding : DES_BLOCK_SIZE_BYTES);
 	}
 

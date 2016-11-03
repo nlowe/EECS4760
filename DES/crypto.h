@@ -29,6 +29,9 @@
 
 #define DES_BLOCK_SIZE_BYTES 8
 
+/**
+ * A file-based implementation of the Data Encryption Standard. Both ECB and CBC modes are supported
+ */
 namespace DES
 {
 	/**
@@ -41,6 +44,17 @@ namespace DES
 	 */
 	enum Mode { ECB, CBC, UNKNOWN_MODE };
 
+	/**
+	 * Encrypt the file at the specified path to the specified output path, using the provided key.
+	 *
+	 * If the mode is CBC, the IV should also be specified
+	 */
 	int EncryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector);
+	
+	/**
+	 * Decrypt the file at the specified path to the specified output path, using the provided key.
+	 *
+	 * If the mode is CBC, the IV should also be specified
+	 */
 	int DecryptFile(std::string inputFile, std::string outputFile, uint64_t key, Mode mode, Optional<uint64_t> CBCInitialVector);
 }

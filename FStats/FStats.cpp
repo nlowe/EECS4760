@@ -28,15 +28,21 @@
 #include <fstream>
 #include "MaxPriorityQueue.h"
 
+// Forward-declare these so main can be at the top as per project spec
 int cleanup(int exitCode);
 void printTopNElements(AVL* tree, size_t n, std::ofstream& writer);
 int printStats(std::string prefix);
 
+/** An AVL Tree for counting individual bytes */
 AVL* singleByteCount = new AVL();
+/** An AVL Tree for counting digraphs */
 AVL* digraphCount = new AVL();
+/** An AVL Tree for counting trigraphs */
 AVL* trigraphCount = new AVL();
+/** An AVL Tree for counting blocks */
 AVL* blockCounter = new AVL();
 
+/** The number of distinct elements to print from the queue formed from each tree */
 size_t TOP_N = 100;
 
 int main(int argc, char* argv[])
@@ -54,6 +60,7 @@ int main(int argc, char* argv[])
 
 	std::cout << "Collecting stats on '" << argv[1] << "' to '" << argv[2] << "'" << std::endl;
 
+	// Open the fil efor read in binary mode
 	std::ifstream reader;
 	reader.open(argv[1], std::ios::binary | std::ios::ate | std::ios::in);
 
@@ -70,6 +77,7 @@ int main(int argc, char* argv[])
 
 	uint8_t blockByteCount = 0;
 
+	// Read the length and then the file
 	auto len = reader.tellg();
 	auto bytes = new char[len]{ 0 };
 	reader.seekg(0, std::ios::beg);
@@ -115,6 +123,7 @@ int main(int argc, char* argv[])
 	return cleanup(printStats(std::string(argv[2])));
 }
 
+/** Free all trees and return the specified exit code */
 int cleanup(int exitCode)
 {
 	delete singleByteCount;
@@ -125,6 +134,9 @@ int cleanup(int exitCode)
 	return exitCode;
 }
 
+/**
+ * Print the top N elements from the specified tree
+ */
 void printTopNElements(AVL* tree, size_t n, std::ofstream& writer)
 {
 	auto q = new MaxPriorityQueue(tree->Size());
@@ -147,6 +159,9 @@ void printTopNElements(AVL* tree, size_t n, std::ofstream& writer)
 	delete q;
 }
 
+/**
+ * Print the statistics calculated in all trees
+ */
 int printStats(std::string prefix)
 {
 	std::ofstream singleByteWriter, digraphWriter, trigraphWriter, blockWriter;
@@ -177,5 +192,6 @@ int printStats(std::string prefix)
 	blockWriter.flush();
 	blockWriter.close();
 
+	// Cleanup called by parent
 	return EXIT_SUCCESS;
 }
